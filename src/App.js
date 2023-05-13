@@ -24,7 +24,7 @@ function App() {
       formData.append('arquivos', arquivos[i]);
     }
 
-    fetch('copiaecia-app.appspot.com/upload', {
+    fetch('https://us-central1-copiaecia-app.cloudfunctions.net/upload', {
       method: 'POST',
       body: formData,
     })
