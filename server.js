@@ -20,7 +20,7 @@ const upload = multer({ storage });
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.post('/upload', upload.array('arquivos'), async (req, res) => {
+app.post('copiaecia-app.appspot.com/upload', upload.array('arquivos'), async (req, res) => {
   const nomeDaPasta = req.body.nomeDaPasta;
 
   const pastaCliente = `clientes/${nomeDaPasta}`;
