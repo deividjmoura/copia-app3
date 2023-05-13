@@ -5,9 +5,12 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 
-// The Firebase Admin SDK to access Firestore.
-const admin = require('firebase-admin');
-admin.initializeApp();
+// Vercel Storage
+const { Storage } = require('@vercel/node');
+const storage = new Storage({
+  projectId: 'prj_Y3ZIJBg6kchm7jrnJlgz9bXK7a2U', // Substituir pelo ID do seu projeto Vercel
+  token: process.env.VERCEL_TOKEN // Substituir pelo seu token Vercel, ou defina a variável de ambiente VERCEL_TOKEN
+});
 
 exports.upload = functions.https.onRequest((req, res) => {
   cors(req, res, () => {
@@ -16,6 +19,7 @@ exports.upload = functions.https.onRequest((req, res) => {
         message: 'Method Not Allowed'
       });
     }
+
     const busboy = new Busboy({ headers: req.headers });
     let uploadData = null;
 
@@ -26,7 +30,6 @@ exports.upload = functions.https.onRequest((req, res) => {
     });
 
     busboy.on('finish', () => {
-      const bucket = admin.storage().bucket();
       const { file, type } = uploadData;
 
       if (!file) {
@@ -41,24 +44,23 @@ exports.upload = functions.https.onRequest((req, res) => {
         destination: `${Date.now()}-${path.basename(file)}`,
         resumable: false,
         metadata: {
-          metadata: {
-            contentType: type
-          }
+          contentType: type
         }
       };
 
-      bucket.upload(file, uploadOptions, (err, uploadedFile) => {
-        if (err) {
+      storage.bucket('vercel-storage-bucket-name') // Substituir pelo nome do bucket de armazenamento do Vercel
+        .upload(file, uploadOptions)
+        .then((uploadedFile) => {
+          return res.status(200).json({
+            message: 'File uploaded successfully',
+            url: `https://vercel-storage-bucket-name.vercel.app/${uploadedFile[0].name}` // Substituir pelo nome do bucket de armazenamento do Vercel
+          });
+        })
+        .catch((err) => {
           return res.status(500).json({
             error: err
           });
-        }
-
-        return res.status(200).json({
-          message: 'File uploaded successfully',
-          url: `https://storage.googleapis.com/${bucket.name}/${uploadedFile.name}`
         });
-      });
     });
 
     busboy.end(req.rawBody);

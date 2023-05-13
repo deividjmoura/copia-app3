@@ -24,7 +24,7 @@ function App() {
       formData.append('arquivos', arquivos[i]);
     }
 
-    fetch('https://us-central1-copiaecia-app.cloudfunctions.net/upload', {
+    fetch('ep-morning-truth-914847-pooler.us-east-1.postgres.vercel-storage.com', {
       method: 'POST',
       body: formData,
     })
