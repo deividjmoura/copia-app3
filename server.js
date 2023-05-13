@@ -1,48 +1,66 @@
-const express = require('express');
-const multer = require('multer');
-const admin = require('firebase-admin');
+const functions = require('firebase-functions');
+const cors = require('cors')({ origin: true });
+const Busboy = require('busboy');
+const os = require('os');
 const path = require('path');
-const serviceAccount = require('./path/to/serviceAccountKey.json');
+const fs = require('fs');
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  storageBucket: 'copiaecia-app.appspot.com' // o nome do seu bucket do Firebase Storage
-});
+// The Firebase Admin SDK to access Firestore.
+const admin = require('firebase-admin');
+admin.initializeApp();
 
-const bucket = admin.storage().bucket();
+exports.upload = functions.https.onRequest((req, res) => {
+  cors(req, res, () => {
+    if (req.method !== 'POST') {
+      return res.status(405).json({
+        message: 'Method Not Allowed'
+      });
+    }
+    const busboy = new Busboy({ headers: req.headers });
+    let uploadData = null;
 
-const app = express();
+    busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
+      const filepath = path.join(os.tmpdir(), filename);
+      uploadData = { file: filepath, type: mimetype };
+      file.pipe(fs.createWriteStream(filepath));
+    });
 
-const storage = multer.memoryStorage();
+    busboy.on('finish', () => {
+      const bucket = admin.storage().bucket();
+      const { file, type } = uploadData;
 
-const upload = multer({ storage });
+      if (!file) {
+        return res.status(400).json({
+          error: {
+            message: 'No file uploaded'
+          }
+        });
+      }
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+      const uploadOptions = {
+        destination: `${Date.now()}-${path.basename(file)}`,
+        resumable: false,
+        metadata: {
+          metadata: {
+            contentType: type
+          }
+        }
+      };
 
-app.post('/upload', upload.array('arquivos'), async (req, res) => {
-  const nomeDaPasta = req.body.nomeDaPasta;
+      bucket.upload(file, uploadOptions, (err, uploadedFile) => {
+        if (err) {
+          return res.status(500).json({
+            error: err
+          });
+        }
 
-  const pastaCliente = `clientes/${nomeDaPasta}`;
+        return res.status(200).json({
+          message: 'File uploaded successfully',
+          url: `https://storage.googleapis.com/${bucket.name}/${uploadedFile.name}`
+        });
+      });
+    });
 
-  const uploads = req.files.map(file => ({
-    originalname: file.originalname,
-    buffer: file.buffer
-  }));
-
-  const uploadPromises = uploads.map(upload => {
-    const extensao = path.extname(upload.originalname);
-    const nomeArquivo = `${upload.originalname}-${Date.now()}${extensao}`;
-    const file = bucket.file(`${pastaCliente}/${nomeArquivo}`);
-    return file.save(upload.buffer, { metadata: { contentType: upload.mimetype }});
+    busboy.end(req.rawBody);
   });
-
-  await Promise.all(uploadPromises);
-
-  console.log(`Arquivos salvos em: ${uploads.map(upload => `${pastaCliente}/${upload.originalname}`).join(', ')}`);
-  res.send('Arquivos recebidos!');
-});
-
-app.listen(4000, () => {
-  console.log('Servidor rodando na porta 4000');
 });
