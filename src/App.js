@@ -1,48 +1,75 @@
-const express = require('express');
-const multer = require('multer');
-const admin = require('firebase-admin');
-const path = require('path');
-const serviceAccount = require('./path/to/serviceAccountKey.json');
+import { useState } from 'react';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  storageBucket: 'gs://copiaecia-app.appspot.com' // o nome do seu bucket do Firebase Storage
-});
+function App() {
+  const [nomeDaPasta, setNomeDaPasta] = useState('');
+  const [arquivos, setArquivos] = useState([]);
 
-const bucket = admin.storage().bucket();
+  const handleInputChange = (event) => {
+    setNomeDaPasta(event.target.value);
+  };
 
-const app = express();
+  const handleFileChange = (event) => {
+    setArquivos([...event.target.files]);
+  };
 
-const storage = multer.memoryStorage();
+  const handleSubmit = (event) => {
+    event.preventDefault();
 
-const upload = multer({ storage });
+    const formData = new FormData();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+    formData.append('nomeDaPasta', nomeDaPasta);
 
-app.post('/upload', upload.array('arquivos'), async (req, res) => {
-  const nomeDaPasta = req.body.nomeDaPasta;
+    for (let i = 0; i < arquivos.length; i++) {
+      formData.append('arquivos', arquivos[i]);
+    }
 
-  const pastaCliente = `clientes/${nomeDaPasta}`;
+    fetch('gs://copiaecia-app.appspot.com/upload', {
+      method: 'POST',
+      body: formData,
+    })
+      .then((res) => res.text())
+      .then((res) => {
+        console.log(res);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  };
 
-  const uploads = req.files.map(file => ({
-    originalname: file.originalname,
-    buffer: file.buffer
-  }));
+  return (
+    <div className="d-flex flex-column align-items-center">
+      <img src="/logosistema.png" alt="Logo do sistema" className="my-3" />
 
-  const uploadPromises = uploads.map(upload => {
-    const extensao = path.extname(upload.originalname);
-    const nomeArquivo = `${upload.originalname}-${Date.now()}${extensao}`;
-    const file = bucket.file(`${pastaCliente}/${nomeArquivo}`);
-    return file.save(upload.buffer, { metadata: { contentType: upload.mimetype }});
-  });
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="nomeDaPasta">Nome da pasta</label>
+          <input
+            type="text"
+            className="form-control"
+            id="nomeDaPasta"
+            value={nomeDaPasta}
+            onChange={handleInputChange}
+          />
+        </div>
 
-  await Promise.all(uploadPromises);
+        <div className="form-group">
+          <label htmlFor="arquivos">Arquivos</label>
+          <input
+            type="file" 
+            className="form-control-file" 
+            id="arquivos" 
+            multiple
+            onChange={handleFileChange}
+          />
+        </div>
 
-  console.log(`Arquivos salvos em: ${uploads.map(upload => `${pastaCliente}/${upload.originalname}`).join(', ')}`);
-  res.send('Arquivos recebidos!');
-});
+        <button type="submit" className="btn btn-primary">
+          Enviar
+        </button>
+      </form>
+    </div>
+  );
+}
 
-app.listen(4000, () => {
-  console.log('Servidor rodando na porta 4000');
-});
+export default App;
