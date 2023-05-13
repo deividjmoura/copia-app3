@@ -24,7 +24,7 @@ function App() {
       formData.append('arquivos', arquivos[i]);
     }
 
-    fetch('http://localhost:4000/upload', {
+    fetch('copia-app3.vercel.app/upload', {
       method: 'POST',
       body: formData,
     })
