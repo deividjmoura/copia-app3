@@ -6,7 +6,7 @@ const serviceAccount = require('./path/to/serviceAccountKey.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  storageBucket: 'copiaecia-app.appspot.com' // o nome do seu bucket do Firebase Storage
+  storageBucket: 'gs://copiaecia-app.appspot.com' // o nome do seu bucket do Firebase Storage
 });
 
 const bucket = admin.storage().bucket();

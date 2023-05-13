@@ -24,7 +24,7 @@ function App() {
       formData.append('arquivos', arquivos[i]);
     }
 
-    fetch('gs://copiaecia-app.appspot.com/upload', {
+    fetch('copiaecia-app.appspot.com/upload', {
       method: 'POST',
       body: formData,
     })
